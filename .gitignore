@@ -61,3 +61,5 @@ htmlcov/
 Thumbs.db
 .vscode/
 .idea/
+.vercel/
+

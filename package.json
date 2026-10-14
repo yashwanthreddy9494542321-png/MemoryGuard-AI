@@ -1,0 +1,11 @@
+{
+  "name": "memoraguard-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privacy-first personal memory assistant with granular access control and vector storage.",
+  "scripts": {
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "lint": "npm --prefix frontend run lint"
+  }
+}

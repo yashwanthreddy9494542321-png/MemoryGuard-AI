@@ -7,6 +7,39 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
+def resolve_data_dir() -> Path:
+    # 1. Custom explicit directory override
+    custom_dir = os.getenv("DATA_DIR")
+    if custom_dir:
+        p = Path(custom_dir)
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            pass
+
+    # 2. Vercel serverless / AWS Lambda environment (read-only filesystem, use /tmp)
+    if os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+        tmp_p = Path("/tmp/memoraguard_data")
+        try:
+            tmp_p.mkdir(parents=True, exist_ok=True)
+            return tmp_p
+        except Exception:
+            pass
+
+    # 3. Local filesystem
+    local_p = Path(__file__).resolve().parent.parent / "data"
+    try:
+        local_p.mkdir(parents=True, exist_ok=True)
+        return local_p
+    except OSError:
+        tmp_p = Path("/tmp/memoraguard_data")
+        tmp_p.mkdir(parents=True, exist_ok=True)
+        return tmp_p
+
+resolved_data_dir = resolve_data_dir()
+is_serverless = bool(os.getenv("VERCEL") or os.getenv("AWS_LAMBDA_FUNCTION_NAME"))
+
 class Settings(BaseModel):
     app_env: str = os.getenv("APP_ENV", "development")
     app_host: str = os.getenv("APP_HOST", "127.0.0.1")
@@ -15,12 +48,12 @@ class Settings(BaseModel):
 
     # Storage Paths
     base_dir: Path = Path(__file__).resolve().parent.parent
-    data_dir: Path = Path(__file__).resolve().parent.parent / "data"
-    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{data_dir / 'memoraguard.db'}")
+    data_dir: Path = resolved_data_dir
+    database_url: str = os.getenv("DATABASE_URL", f"sqlite:///{resolved_data_dir / 'memoraguard.db'}")
 
     # Qdrant Vector DB
-    qdrant_mode: str = os.getenv("QDRANT_MODE", "local")  # 'local' or 'hosted'
-    qdrant_local_path: str = os.getenv("QDRANT_LOCAL_PATH", str(data_dir / "qdrant_storage"))
+    qdrant_mode: str = os.getenv("QDRANT_MODE", "hosted" if os.getenv("QDRANT_URL") else ("memory" if is_serverless else "local"))
+    qdrant_local_path: str = os.getenv("QDRANT_LOCAL_PATH", ":memory:" if is_serverless else str(resolved_data_dir / "qdrant_storage"))
     qdrant_url: str = os.getenv("QDRANT_URL", "")
     qdrant_api_key: str = os.getenv("QDRANT_API_KEY", "")
     qdrant_collection_name: str = os.getenv("QDRANT_COLLECTION_NAME", "memoraguard_memories")
@@ -71,4 +104,8 @@ class Settings(BaseModel):
 
 
 settings = Settings()
-settings.data_dir.mkdir(parents=True, exist_ok=True)
+try:
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+except Exception:
+    settings.data_dir = Path("/tmp/memoraguard_data")
+    settings.data_dir.mkdir(parents=True, exist_ok=True)

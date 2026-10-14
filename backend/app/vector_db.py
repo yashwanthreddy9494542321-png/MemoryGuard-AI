@@ -32,11 +32,20 @@ class QdrantVectorService:
                     timeout=5.0
                 )
                 self.mode = "hosted"
+            elif settings.qdrant_local_path == ":memory:" or settings.qdrant_mode == "memory":
+                # In-memory Qdrant (serverless / test environments)
+                self.client = QdrantClient(":memory:")
+                self.mode = "memory"
             else:
                 # Local embedded Qdrant (writes to disk or memory)
-                settings.data_dir.mkdir(parents=True, exist_ok=True)
-                self.client = QdrantClient(path=settings.qdrant_local_path)
-                self.mode = "local"
+                try:
+                    settings.data_dir.mkdir(parents=True, exist_ok=True)
+                    self.client = QdrantClient(path=settings.qdrant_local_path)
+                    self.mode = "local"
+                except Exception as disk_err:
+                    print(f"[Qdrant] Disk storage init failed ({disk_err}). Falling back to :memory: mode.")
+                    self.client = QdrantClient(":memory:")
+                    self.mode = "memory"
 
             # Check if collection exists or create it
             collections = self.client.get_collections().collections

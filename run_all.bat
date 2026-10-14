@@ -5,7 +5,7 @@ echo MemoraGuard AI: Launching Full-Stack Services...
 echo ========================================================
 
 start "MemoraGuard Backend (8000)" cmd /k "%~dp0run_backend.bat"
-timeout /t 3 /nobreak >nul
+timeout /t 5 /nobreak >nul
 start "MemoraGuard Frontend (5173)" cmd /k "%~dp0run_frontend.bat"
 
 echo.
